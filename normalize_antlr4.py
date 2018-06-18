@@ -252,7 +252,8 @@ class ParserRuleExtractor(ANTLRv4ParserVisitor):
         return ctx.alternative().accept(self)
 
     def visitAlternative(self, ctx:ANTLRv4Parser.AlternativeContext):
-        return tuple(x.accept(self) for x in ctx.element())
+        return tuple(symbol for element in ctx.element()
+                            for symbol in (element.accept(self),) if symbol)
 
     def visitElement(self,ctx:ANTLRv4Parser.ElementContext):
         if ctx.actionBlock():
