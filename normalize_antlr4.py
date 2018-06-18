@@ -9,8 +9,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -32,8 +32,8 @@ from ANTLRv4ParserVisitor import ANTLRv4ParserVisitor
 
 class Grammar:
     def __init__(self, lexer_rules, terminals, nonterminals):
-        self.lexer_rules  = lexer_rules
-        self.terminals    = terminals
+        self.lexer_rules = lexer_rules
+        self.terminals = terminals
         self.nonterminals = nonterminals
 
     def to_antlr_string(self):
@@ -42,11 +42,12 @@ class Grammar:
             rule = name + '\n  : '
             rule += '\n  | '.join(' '.join(x) for x in rules) + '\n  ;\n'
             chunks.append(rule)
-        return '\n'.join(chunks)        
+        return '\n'.join(chunks)
 
 
 def get_all_leaves(tree):
     leaves = []
+
     def dfs_leaf_helper(subtree):
         if isinstance(subtree, TerminalNode):
             leaves.append(subtree)
@@ -109,6 +110,7 @@ class GrammarBuilder:
             nullable.update(name for name, rules in self.nonterminals.items()
                             if any(all(term in nullable for term in rule)
                                    for rule in rules))
+
         def propagate(rule):
             terms = [[(term,)] + ([()] if term in nullable else [])
                      for term in rule if term not in null]
@@ -126,9 +128,9 @@ class GrammarBuilder:
                              if rules}
         self._recompute_dedup()
 
-
     def eliminate_units(self):
         terminals = set(self.lexer_rules) | self.nonrule_terminals
+
         def unit(first_rule):
             seen = set()
             to_clean = collections.deque([first_rule])
@@ -143,19 +145,22 @@ class GrammarBuilder:
                     to_clean.extend(self.nonterminals[name])
             return rules
 
-        self.nonterminals = {name:tuple(x for rule in rules for x in unit(rule))
-                             for name, rules in self.nonterminals.copy().items()}
+        self.nonterminals = {name: tuple(x for rule in rules
+                                           for x in unit(rule))
+                            for name, rules in self.nonterminals.copy().items()}
         self._recompute_dedup()
 
     def prune_unreachable(self, start):
         reachable = set()
+
         def dfs_helper(name):
             if name in self.nonterminals and name not in reachable:
                 reachable.add(name)
                 for term in {t for r in self.nonterminals[name] for t in r}:
                     dfs_helper(term)
         dfs_helper(start)
-        self.nonterminals = {name:rules for name,rules in self.nonterminals.items()
+        self.nonterminals = {name: rules
+                             for name, rules in self.nonterminals.items()
                              if name in reachable}
         self._recompute_dedup()
 
@@ -170,7 +175,7 @@ class GrammarBuilder:
         self.add_nonterminal(nonterminal_name, [(name,)])
 
     def add_terminal(self, text):
-        if not text in self.nonrule_terminals:
+        if text not in self.nonrule_terminals:
             self.nonrule_terminals.add(text)
             name = 'terminal_' + str(len(self.nonrule_terminals))
             self.add_nonterminal(name, [(text,)])
@@ -206,19 +211,19 @@ class GrammarBuilder:
 
 
 class LexerRuleExtractor(ANTLRv4ParserVisitor):
-    def __init__(self, grammar:GrammarBuilder):
+    def __init__(self, grammar):
         self.grammar = grammar
 
-    def visitGrammarSpec(self, ctx:ANTLRv4Parser.GrammarSpecContext):
+    def visitGrammarSpec(self, ctx: ANTLRv4Parser.GrammarSpecContext):
         self.visitChildren(ctx)
         # Handle build int lexer symbols
         self.grammar.add_lexer_rule('EOF')
 
-    def visitLexerRuleSpec(self, ctx:ANTLRv4Parser.LexerRuleSpecContext):
+    def visitLexerRuleSpec(self, ctx: ANTLRv4Parser.LexerRuleSpecContext):
         if not ctx.FRAGMENT():
             self.grammar.add_lexer_rule(str(ctx.TOKEN_REF()))
 
-    def visitAtom(self, ctx:ANTLRv4Parser.AtomContext):
+    def visitAtom(self, ctx: ANTLRv4Parser.AtomContext):
         if ctx.terminal() and ctx.terminal().STRING_LITERAL():
             self.grammar.add_terminal(str(ctx.terminal().STRING_LITERAL()))
         elif ctx.notSet():
@@ -226,36 +231,36 @@ class LexerRuleExtractor(ANTLRv4ParserVisitor):
 
 
 class ParserRuleExtractor(ANTLRv4ParserVisitor):
-    def __init__(self, grammar:GrammarBuilder):
+    def __init__(self, grammar):
         self.grammar = grammar
         self.last_rule = None
         self.subrule_count = 0
 
-    def visitLexerRuleSpec(self, ctx:ANTLRv4Parser.LexerRuleSpecContext):
+    def visitLexerRuleSpec(self, ctx: ANTLRv4Parser.LexerRuleSpecContext):
         # Skip exploring lexer rules any further.
         pass
 
-    def visitParserRuleSpec(self, ctx:ANTLRv4Parser.ParserRuleSpecContext):
+    def visitParserRuleSpec(self, ctx: ANTLRv4Parser.ParserRuleSpecContext):
         # Extract the name and reset subrules before exploring deeper.
         name = str(ctx.RULE_REF())
         self.last_rule = name
-        self.subrule_count = 0;
+        self.subrule_count = 0
 
         # Recurse into the subtree of this rule.
         rules = ctx.ruleBlock().accept(self)
         self.grammar.add_nonterminal(name, rules, True)
 
-    def visitRuleAltList(self, ctx:ANTLRv4Parser.ParserRuleSpecContext):
+    def visitRuleAltList(self, ctx: ANTLRv4Parser.ParserRuleSpecContext):
         return tuple(x.accept(self) for x in ctx.labeledAlt())
 
-    def visitLabeledAlt(self, ctx:ANTLRv4Parser.LabeledAltContext):
+    def visitLabeledAlt(self, ctx: ANTLRv4Parser.LabeledAltContext):
         return ctx.alternative().accept(self)
 
-    def visitAlternative(self, ctx:ANTLRv4Parser.AlternativeContext):
+    def visitAlternative(self, ctx: ANTLRv4Parser.AlternativeContext):
         return tuple(symbol for element in ctx.element()
                             for symbol in (element.accept(self),) if symbol)
 
-    def visitElement(self,ctx:ANTLRv4Parser.ElementContext):
+    def visitElement(self, ctx: ANTLRv4Parser.ElementContext):
         if ctx.actionBlock():
             return None
         # Get the base regardless of labeledElement, atom, or ebnf
@@ -265,26 +270,25 @@ class ParserRuleExtractor(ANTLRv4ParserVisitor):
         else:
             return base
 
-    def visitEbnf(self, ctx:ANTLRv4Parser.EbnfContext):
+    def visitEbnf(self, ctx: ANTLRv4Parser.EbnfContext):
         base = ctx.block().accept(self)
         if ctx.blockSuffix():
             return self.handleSuffix(ctx.blockSuffix().ebnfSuffix(), base)
         else:
             return base
 
-    def visitBlock(self, ctx:ANTLRv4Parser.BlockContext):
+    def visitBlock(self, ctx: ANTLRv4Parser.BlockContext):
         rules = tuple(x.accept(self) for x in ctx.altList().alternative())
         self.subrule_count += 1
         name = '{0}_block_{1}'.format(self.last_rule, self.subrule_count)
         name = self.grammar.find_or_add_nonterminal(name, rules)
         return name
 
-
-    def visitLabeledElement(self,ctx:ANTLRv4Parser.LabeledElementContext):
+    def visitLabeledElement(self, ctx: ANTLRv4Parser.LabeledElementContext):
         to_extract = ctx.atom() or ctx.block()
         return to_extract.accept(self)
 
-    def visitAtom(self, ctx:ANTLRv4Parser.AtomContext):
+    def visitAtom(self, ctx: ANTLRv4Parser.AtomContext):
         if ctx.terminal():
             node = ctx.terminal().STRING_LITERAL() or ctx.terminal().TOKEN_REF()
             return self.grammar.get_terminal_symbol(str(node))
@@ -304,18 +308,18 @@ class ParserRuleExtractor(ANTLRv4ParserVisitor):
             rules = ((base, name), ())
         elif suffix.PLUS():
             rules = ((base, name), (base,))
-        else: # QUESTION
+        else:  # QUESTION
             rules = ((base,), ())
         name = self.grammar.find_or_add_nonterminal(name, rules)
         return name
 
 
 def print_cnf_grammar(grammar_path, start):
-    input  = FileStream(grammar_path)
-    lexer  = ANTLRv4Lexer(input)
+    input = FileStream(grammar_path)
+    lexer = ANTLRv4Lexer(input)
     stream = CommonTokenStream(lexer)
     parser = ANTLRv4Parser(stream)
-    tree   = parser.grammarSpec()
+    tree = parser.grammarSpec()
 
     builder = GrammarBuilder()
     lexer_rule_extractor = LexerRuleExtractor(builder)
@@ -335,4 +339,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print_cnf_grammar(args.grammar, args.start)
-
