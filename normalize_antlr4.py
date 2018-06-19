@@ -37,11 +37,21 @@ class Grammar:
         self.nonterminals = nonterminals
 
     def to_antlr_string(self):
-        chunks = []
-        for name, rules in self.nonterminals.items():
-            rule = name + '\n  : '
-            rule += '\n  | '.join(' '.join(x) for x in rules) + '\n  ;\n'
-            chunks.append(rule)
+        lexer_rules = {terminal: 'CNF_TERM_{0}'.format(i)
+                       for i, terminal in enumerate(sorted(self.terminals))}
+
+        def clean(symbol):
+            return symbol if symbol not in lexer_rules else lexer_rules[symbol]
+
+        def rule_text(rule):
+            return ' '.join(clean(symbol) for symbol in rule)
+
+        chunks = ['{0}: {1};'.format(name, terminal)
+                  for terminal, name in lexer_rules.items()]
+        chunks.append('\n')
+        chunks.extend('{0}\n  : {1}\n  ;\n'.format(name,
+                      '\n  | '.join(rule_text(rule) for rule in rules))
+                      for name, rules in sorted(self.nonterminals.items()))
         return '\n'.join(chunks)
 
 
@@ -119,8 +129,8 @@ class GrammarBuilder:
 
         # First compute the effects of propagating empty strings
         self.nonterminals = {name: tuple(x for rule in rhs
-                                            for x in propagate(rule)
-                                            if x)
+                                         for x in propagate(rule)
+                                         if x)
                              for name, rhs in self.nonterminals.items()}
         # Then remove all empty rules.
         self.nonterminals = {name: rules
@@ -145,8 +155,8 @@ class GrammarBuilder:
                     to_clean.extend(self.nonterminals[name])
             return rules
 
-        self.nonterminals = {name: tuple(x for rule in rules
-                                           for x in unit(rule))
+        self.nonterminals = {name: tuple(new_rule for rule in rules
+                                                  for new_rule in unit(rule))
                             for name, rules in self.nonterminals.copy().items()}
         self._recompute_dedup()
 
@@ -182,6 +192,7 @@ class GrammarBuilder:
 
     def add_nonterminal(self, name, derivations, force=False):
         key = self._make_key(derivations)
+        assert name not in self.nonterminals
         assert force or key not in self.rule_deduper
         self.nonterminals[name] = derivations
         self.rule_deduper[key] = name
@@ -213,21 +224,45 @@ class GrammarBuilder:
 class LexerRuleExtractor(ANTLRv4ParserVisitor):
     def __init__(self, grammar):
         self.grammar = grammar
+        self.lexer_map = {}
 
     def visitGrammarSpec(self, ctx: ANTLRv4Parser.GrammarSpecContext):
-        self.visitChildren(ctx)
-        # Handle build int lexer symbols
-        self.grammar.add_lexer_rule('EOF')
+        # We want to make sure that lexer rules are visited first so that
+        # we can use them in the parser rules if necessary
+        rules = ctx.rules().ruleSpec()
+        lexer_rules = [x.lexerRuleSpec() for x in rules if x.lexerRuleSpec()]
+        parser_rules = [x.parserRuleSpec() for x in rules if x.parserRuleSpec()]
+        for rule in lexer_rules + parser_rules:
+            rule.accept(self)
 
     def visitLexerRuleSpec(self, ctx: ANTLRv4Parser.LexerRuleSpecContext):
         if not ctx.FRAGMENT():
-            self.grammar.add_lexer_rule(str(ctx.TOKEN_REF()))
+            name = str(ctx.TOKEN_REF())
+            self.grammar.add_lexer_rule(name)
+            self.lexer_map[get_tree_as_string(ctx.lexerRuleBlock())] = name
 
     def visitAtom(self, ctx: ANTLRv4Parser.AtomContext):
-        if ctx.terminal() and ctx.terminal().STRING_LITERAL():
-            self.grammar.add_terminal(str(ctx.terminal().STRING_LITERAL()))
+        if ctx.terminal():
+            terminal = ctx.terminal()
+            if terminal.TOKEN_REF():
+                name = str(terminal.TOKEN_REF())
+                if name not in self.grammar.lexer_rules:
+                    self.grammar.add_lexer_rule(name)
+            elif terminal.STRING_LITERAL():
+                # Canonicalize implicit token refs. ANTLR allows them.
+                text = str(terminal.STRING_LITERAL())
+                if text in self.lexer_map:
+                    terminal.children = [self._get_token_ref(text)]
+                else:
+                    self.grammar.add_terminal(text)
         elif ctx.notSet():
             self.grammar.add_terminal(get_tree_as_string(ctx.notSet()))
+
+    def _get_token_ref(self, text):
+        token = Token()
+        token.type = ANTLRv4Parser.TOKEN_REF
+        token.text = self.lexer_map[text]
+        return tree.Tree.TerminalNodeImpl(token)
 
 
 class ParserRuleExtractor(ANTLRv4ParserVisitor):
