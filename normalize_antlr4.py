@@ -31,28 +31,23 @@ from ANTLRv4ParserVisitor import ANTLRv4ParserVisitor
 
 
 class Grammar:
-    def __init__(self, lexer_rules, terminals, nonterminals):
-        self.lexer_rules = lexer_rules
-        self.terminals = terminals
+    # `nonterminals` should be a dict mapping nonterminal numbers to tuples
+    # of possible derivations.
+    def __init__(self, num_terminals, nonterminals):
+        self.num_terminals = num_terminals
         self.nonterminals = nonterminals
 
-    def to_antlr_string(self):
-        lexer_rules = {terminal: 'CNF_TERM_{0}'.format(i)
-                       for i, terminal in enumerate(sorted(self.terminals))}
+    def __str__(self):
+        def rhs(atom):
+            return '{0}{1}'.format('T' if atom < self.num_terminals else 'N',
+                                   atom)
 
-        def clean(symbol):
-            return symbol if symbol not in lexer_rules else lexer_rules[symbol]
+        def rule_text(name, rule):
+            return 'N{0} -> {1}'.format(name, ' '.join(rhs(x) for x in rule))
 
-        def rule_text(rule):
-            return ' '.join(clean(symbol) for symbol in rule)
-
-        chunks = ['{0}: {1};'.format(name, terminal)
-                  for terminal, name in lexer_rules.items()]
-        chunks.append('\n')
-        chunks.extend('{0}\n  : {1}\n  ;\n'.format(name,
-                      '\n  | '.join(rule_text(rule) for rule in rules))
-                      for name, rules in sorted(self.nonterminals.items()))
-        return '\n'.join(chunks)
+        return '\n'.join(rule_text(name, rule)
+                         for name, rules in self.nonterminals.items()
+                         for rule in rules)
 
 
 def get_all_leaves(tree):
@@ -80,6 +75,25 @@ class GrammarBuilder:
         self.nonrule_terminals = set()
         self.nonterminals = {}
         self.rule_deduper = {}
+
+    def to_antlr_string(self):
+        terminals = sorted(self.nonrule_terminals)
+        lexer_rules = {terminal: 'CNF_TERM_{0}'.format(i)
+                       for i, terminal in enumerate(terminals)}
+
+        def clean(symbol):
+            return symbol if symbol not in lexer_rules else lexer_rules[symbol]
+
+        def rule_text(rule):
+            return ' '.join(clean(symbol) for symbol in rule)
+
+        chunks = ['{0}: {1};'.format(name, terminal)
+                  for terminal, name in lexer_rules.items()]
+        chunks.append('\n')
+        chunks.extend('{0}\n  : {1}\n  ;\n'.format(name,
+                      '\n  | '.join(rule_text(rule) for rule in rules))
+                      for name, rules in sorted(self.nonterminals.items()))
+        return '\n'.join(chunks)
 
     # Note, this computes the CNF for L(G)-ε
     def to_cnf(self, old_start_symbol, new_start='cnf_start'):
@@ -174,10 +188,26 @@ class GrammarBuilder:
                              if name in reachable}
         self._recompute_dedup()
 
-    def build(self):
-        return Grammar(self.lexer_rules,
-                       self.nonrule_terminals,
-                       self.nonterminals)
+    # Takes a lexer for the original grammar
+    def build(self, token_map, start_symbol='cnf_start'):
+        assert len(self.nonrule_terminals) == 0
+        # tokens reserve the lower 1...len symbols
+        nonterminal_map = {name: i + len(token_map) + 1
+                           for i, name in enumerate(self.nonterminals)}
+        ordered = sorted(self.nonterminals.items(),
+                         key=lambda x: (x[0]!=start_symbol, x[0], x[1]))
+        num_to_rule = {nonterminal_map[name]: rules for name, rules in ordered}
+        def to_num(atom):
+            if atom in token_map:
+                return token_map[atom]
+            elif atom in nonterminal_map:
+                return nonterminal_map[atom]
+            else:
+                return -1
+
+        rules = {i:tuple(tuple(to_num(atom) for atom in rule) for rule in rules)
+                 for i, rules in num_to_rule.items()}
+        return Grammar(len(token_map), rules)
 
     def add_lexer_rule(self, name):
         self.lexer_rules.append(name)
@@ -207,7 +237,7 @@ class GrammarBuilder:
 
     def get_terminal_symbol(self, text):
         key = self._make_key([(text,)])
-        return self.rule_deduper[key]
+        return self.rule_deduper[key] if key in self.rule_deduper else text
 
     def get_nonterminal(self, rules):
         key = self._make_key(rules)
@@ -221,7 +251,7 @@ class GrammarBuilder:
                              for name, rules in self.nonterminals.items()}
 
 
-class LexerRuleExtractor(ANTLRv4ParserVisitor):
+class LexerRuleCanonicalizer(ANTLRv4ParserVisitor):
     def __init__(self, grammar):
         self.grammar = grammar
         self.lexer_map = {}
@@ -349,7 +379,7 @@ class ParserRuleExtractor(ANTLRv4ParserVisitor):
         return name
 
 
-def print_cnf_grammar(grammar_path, start):
+def make_builder(grammar_path, canonicalize_lexer_rules=True):
     input = FileStream(grammar_path)
     lexer = ANTLRv4Lexer(input)
     stream = CommonTokenStream(lexer)
@@ -357,14 +387,19 @@ def print_cnf_grammar(grammar_path, start):
     tree = parser.grammarSpec()
 
     builder = GrammarBuilder()
-    lexer_rule_extractor = LexerRuleExtractor(builder)
-    tree.accept(lexer_rule_extractor)
+    if canonicalize_lexer_rules:
+        lexer_rule_extractor = LexerRuleCanonicalizer(builder)
+        tree.accept(lexer_rule_extractor)
     parser_rule_extractor = ParserRuleExtractor(builder)
     tree.accept(parser_rule_extractor)
-    builder.to_cnf(start)
-    grammar = builder.build()
+    return builder
 
-    print(grammar.to_antlr_string())
+
+def print_cnf_grammar(grammar_path, start):
+    builder = make_builder(grammar_path)
+    builder.to_cnf(start)
+    as_str = builder.to_antlr_string()
+    print(as_str)
 
 
 if __name__ == '__main__':
