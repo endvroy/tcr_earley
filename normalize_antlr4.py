@@ -61,6 +61,7 @@ def get_all_leaves(tree):
                 dfs_leaf_helper(child)
         else:
             debug_message(repr(subtree))
+
     dfs_leaf_helper(tree)
     return leaves
 
@@ -91,7 +92,7 @@ class GrammarBuilder:
                   for terminal, name in lexer_rules.items()]
         chunks.append('\n')
         chunks.extend('{0}\n  : {1}\n  ;\n'.format(name,
-                      '\n  | '.join(rule_text(rule) for rule in rules))
+                                                   '\n  | '.join(rule_text(rule) for rule in rules))
                       for name, rules in sorted(self.nonterminals.items()))
         return '\n'.join(chunks)
 
@@ -170,8 +171,8 @@ class GrammarBuilder:
             return rules
 
         self.nonterminals = {name: tuple(new_rule for rule in rules
-                                                  for new_rule in unit(rule))
-                            for name, rules in self.nonterminals.copy().items()}
+                                         for new_rule in unit(rule))
+                             for name, rules in self.nonterminals.copy().items()}
         self._recompute_dedup()
 
     def prune_unreachable(self, start):
@@ -182,6 +183,7 @@ class GrammarBuilder:
                 reachable.add(name)
                 for term in {t for r in self.nonterminals[name] for t in r}:
                     dfs_helper(term)
+
         dfs_helper(start)
         self.nonterminals = {name: rules
                              for name, rules in self.nonterminals.items()
@@ -195,8 +197,9 @@ class GrammarBuilder:
         nonterminal_map = {name: i + len(token_map) + 1
                            for i, name in enumerate(self.nonterminals)}
         ordered = sorted(self.nonterminals.items(),
-                         key=lambda x: (x[0]!=start_symbol, x[0], x[1]))
+                         key=lambda x: (x[0] != start_symbol, x[0], x[1]))
         num_to_rule = {nonterminal_map[name]: rules for name, rules in ordered}
+
         def to_num(atom):
             if atom in token_map:
                 return token_map[atom]
@@ -205,7 +208,7 @@ class GrammarBuilder:
             else:
                 return -1
 
-        rules = {i:tuple(tuple(to_num(atom) for atom in rule) for rule in rules)
+        rules = {i: tuple(tuple(to_num(atom) for atom in rule) for rule in rules)
                  for i, rules in num_to_rule.items()}
         return Grammar(len(token_map), rules)
 
@@ -323,7 +326,7 @@ class ParserRuleExtractor(ANTLRv4ParserVisitor):
 
     def visitAlternative(self, ctx: ANTLRv4Parser.AlternativeContext):
         return tuple(symbol for element in ctx.element()
-                            for symbol in (element.accept(self),) if symbol)
+                     for symbol in (element.accept(self),) if symbol)
 
     def visitElement(self, ctx: ANTLRv4Parser.ElementContext):
         if ctx.actionBlock():
