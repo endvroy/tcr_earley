@@ -1,4 +1,3 @@
-import argparse
 from collections import defaultdict
 
 
@@ -49,22 +48,6 @@ class Grammar:
 
     def init_set(self):
         return ItemSet([Item(x) for x in self.rules[self.starting_symbol]])
-
-
-def load_grammar(fpath):
-    """Loads the grammar from file"""
-    grammar = Grammar()
-
-    with open(fpath) as f:
-        for line in f:
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            entries = line.split('->')
-            lhs = entries[0].strip()
-            for rhs in entries[1].split('|'):
-                grammar.add(Rule(lhs, rhs.strip().split()))
-    return grammar
 
 
 class Item:
@@ -191,17 +174,3 @@ class EarleyParser:
                     item.is_complete():
                 possible_skips.append(item.skip)
         return possible_skips
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Runs the Earley parser according to a given grammar.')
-    parser.add_argument('grammar_file', help="filepath to grammar file")
-    args = parser.parse_args()
-
-    grammar = load_grammar(args.grammar_file)
-    grammar.starting_symbol = 'S'
-
-    tokens = 'int + int + int'.split(' ')
-
-    parser = EarleyParser(tokens, grammar)
-    parser.parse()
