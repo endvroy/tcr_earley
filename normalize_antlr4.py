@@ -194,10 +194,11 @@ class GrammarBuilder:
     def build(self, token_map, start_symbol='cnf_start'):
         assert len(self.nonrule_terminals) == 0
         # tokens reserve the lower 1...len symbols
-        nonterminal_map = {name: i + len(token_map) + 1
-                           for i, name in enumerate(self.nonterminals)}
         ordered = sorted(self.nonterminals.items(),
                          key=lambda x: (x[0] != start_symbol, x[0], x[1]))
+        nonterminal_map = {name: i + len(token_map) + 1
+                           for i, name in enumerate(x[0] for x in ordered)}
+
         num_to_rule = {nonterminal_map[name]: rules for name, rules in ordered}
 
         def to_num(atom):
