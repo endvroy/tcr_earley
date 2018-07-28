@@ -3,42 +3,35 @@ import os
 import importlib
 from antlr4 import FileStream, CommonTokenStream
 from normalize_antlr4 import make_builder
-from ANTLRv4Lexer import ANTLRv4Lexer
-from .earley_parser import Rule, Grammar, EarleyParser
-
-
-def get_grammar(grammar_path, start, canonicalize_lexer_rules=True):
-    inp = FileStream(grammar_path)
-    lexer = ANTLRv4Lexer(inp)
-    token_map = {name: i for i, name in enumerate(lexer.symbolicNames)}
-    builder = make_builder(grammar_path, canonicalize_lexer_rules=canonicalize_lexer_rules)
-    builder.to_cnf(start)
-    grammar = builder.build(token_map)
-    return grammar
+from skippy_earley.earley_parser import Rule, Grammar, EarleyParser
 
 
 def transform_grammar(grammar):
     g = Grammar()
     g.starting_symbol = -1
     for lhs, rhs_list in grammar.nonterminals.items():
-        if lhs > g.starting_symbol:
+        if g.starting_symbol == -1:
             g.starting_symbol = lhs
         for rhs in rhs_list:
             g.add(Rule(lhs, rhs))
     return g
 
 
-def load_lexer(file_name):
+def load_grammar(grammar_path, lexer_path):
     import sys
-
-    lexer_dir, lexer_file = os.path.split(file_name)
+    lexer_dir, lexer_file = os.path.split(lexer_path)
     lexer_name = lexer_file[:lexer_file.rfind('.py')]
     sys.path.append(lexer_dir)
 
     module = importlib.import_module(lexer_name)
     FileLexer = getattr(module, lexer_name)
 
-    return FileLexer
+    inp = FileStream(grammar_path)
+    lexer = FileLexer(inp)
+    token_map = {name: i for i, name in enumerate(lexer.symbolicNames)}
+    builder = make_builder(grammar_path)
+    grammar = builder.build(token_map)
+    return FileLexer, transform_grammar(grammar)
 
 
 def get_stream(Lexer, file_path):
@@ -47,27 +40,29 @@ def get_stream(Lexer, file_path):
     stream = CommonTokenStream(lexer)
     stream.fill()
     tokens = stream.tokens
-    new_stream = [t.type for t in tokens]
+    new_stream = [t.type for t in tokens[:-1]]
     return new_stream, tokens
+
+
+def main(grammar_path, lexer_path, file_path):
+    # load the grammar and lexer
+    Lexer, grammar = load_grammar(grammar_path, lexer_path)
+    # read token stream
+    tokens, orig_tokens = get_stream(Lexer, file_path)
+
+    # get skipped indices
+    parser = EarleyParser(tokens, grammar)
+    parser.parse()
+    skipped_indices = parser.extract()
+
+    # todo: print out all test cases
+    return skipped_indices
 
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description='Test Case Reduction')
     arg_parser.add_argument('grammar', help='path to grammar file')
-    arg_parser.add_argument('start', help='starting symbol of the grammar')
     arg_parser.add_argument('lexer', help='path to lexer for target language')
     arg_parser.add_argument('file', help='path to test case')
     args = arg_parser.parse_args()
-
-    # read the grammar
-    grammar = transform_grammar(get_grammar(args.grammar, args.start))
-    # load the lexer
-    Lexer = load_lexer(args.lexer)
-    # read token stream
-    tokens, orig_tokens = get_stream(Lexer, args.file)
-
-    # get skipped indices
-    parser = EarleyParser(tokens, grammar)
-    skipped_indices = parser.parse()
-
-    # todo: print out all test cases
+    si = main(args.grammar, args.lexer, args.file)
