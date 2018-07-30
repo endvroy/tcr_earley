@@ -1,3 +1,4 @@
+import skippy_earley.main as sem
 from skippy_earley.earley_parser import *
 import unittest
 
@@ -23,6 +24,13 @@ class TestEarley(unittest.TestCase):
                               [1, 2, 3, 4],
                               [2, 3],
                               [3, 4]])
+
+    def test_sequence(self):
+        si = sem.main('tests/test_earley/01-sequence/tmp.g4',
+                      'tests/test_earley/01-sequence/tmpLexer.py',
+                      'tests/test_earley/01-sequence/sequence.txt')
+        self.assertListEqual(sorted(si),
+                             [[2, 3, 4], [3, 4, 5], [3, 5, 6], [4, 5, 6]])
 
 
 if __name__ == '__main__':
