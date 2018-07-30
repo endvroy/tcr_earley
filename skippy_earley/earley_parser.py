@@ -143,7 +143,7 @@ class EarleyParser:
                 self.table[pos].add(Item(prev_item.rule,
                                          dot=prev_item.dot + 1,
                                          at=prev_item.at,
-                                         skip=sorted(set(prev_item.skip + item.skip))))
+                                         skip=prev_item.skip + item.skip))
 
     def skip(self, pos):
         if pos + 1 == len(self.table):
@@ -152,7 +152,7 @@ class EarleyParser:
             for item in self.table[pos]:
                 # if item.at < pos:
                 x = item.copy()
-                x.skip.append(pos)  # index = pos - 1
+                x.skip.append(pos)
                 self.table[pos + 1].add(x)
 
     def parse(self):
@@ -173,6 +173,5 @@ class EarleyParser:
             if item.rule in self.grammar[self.grammar.starting_symbol] \
                     and item.at == 0 and \
                     item.is_complete():
-                if item.skip not in possible_skips:
-                    possible_skips.append(item.skip)
+                possible_skips.append(item.skip)
         return possible_skips
