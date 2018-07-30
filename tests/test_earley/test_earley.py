@@ -1,34 +1,29 @@
 from skippy_earley.earley_parser import *
+import unittest
 
 
-def _load_grammar(fpath):
-    """Loads the grammar from file"""
-    grammar = Grammar()
+class TestEarley(unittest.TestCase):
+    def test_easy(self):
+        grammar = Grammar()
+        grammar.add(Rule('E', ['E', '+', 'E']))
+        grammar.add(Rule('E', ['int']))
+        grammar.starting_symbol = 'E'
 
-    with open(fpath) as f:
-        for line in f:
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            entries = line.split('->')
-            lhs = entries[0].strip()
-            for rhs in entries[1].split('|'):
-                grammar.add(Rule(lhs, rhs.strip().split()))
-    return grammar
+        tokens = 'int + int + int'.split(' ')
+
+        parser = EarleyParser(tokens, grammar)
+        parser.parse()
+        si = parser.extract()
+        self.assertListEqual(sorted(si),
+                             [[],
+                              [0, 1],
+                              [0, 1, 2, 3],
+                              [0, 1, 3, 4],
+                              [1, 2],
+                              [1, 2, 3, 4],
+                              [2, 3],
+                              [3, 4]])
 
 
 if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Runs the Earley parser according to a given grammar.')
-    parser.add_argument('grammar', help='path to grammar file')
-    parser.add_argument('lex', help='path to lexical rule')
-    parser.add_argument('file', help='path to test case')
-    args = parser.parse_args()
-
-    grammar = _load_grammar(args.grammar_file)
-
-    tokens = 'int + int + int'.split(' ')
-
-    parser = EarleyParser(tokens, grammar)
-    parser.parse()
+    unittest.main()
