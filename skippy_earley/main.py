@@ -29,7 +29,7 @@ def load_grammar(grammar_path, lexer_path):
     inp = FileStream(grammar_path)
     lexer = FileLexer(inp)
     token_map = {name: i for i, name in enumerate(lexer.symbolicNames)}
-    builder = make_builder(grammar_path)
+    builder = make_builder(grammar_path, False)
     grammar = builder.build(token_map)
     return FileLexer, transform_grammar(grammar)
 
