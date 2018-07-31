@@ -51,7 +51,7 @@ class Grammar:
         return len(self.rules[sym]) == 0
 
     def init_set(self):
-        return ItemSet([Item(x) for x in self.rules[self.starting_symbol]])
+        return ItemSet(Item(x) for x in self.rules[self.starting_symbol])
 
 
 class Item:
@@ -114,7 +114,7 @@ class ItemSet:
     def __len__(self):
         return len(self.items)
 
-    def add(self, item):  # todo: speed up
+    def add(self, item):
         """Add the given item (if it hasn't already been added)."""
         self.items.add(item)  # list eq hidden in each step
 
@@ -173,7 +173,7 @@ class EarleyParser:
     def skip(self, pos):
         if pos + 1 == len(self.table):
             return
-        if pos < len(self.table):
+        else:
             for item in self.table[pos]:
                 # if item.at < pos:
                 x = Item(item.rule,
