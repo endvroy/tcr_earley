@@ -66,3 +66,4 @@ if __name__ == '__main__':
     arg_parser.add_argument('file', help='path to test case')
     args = arg_parser.parse_args()
     si = main(args.grammar, args.lexer, args.file)
+    print(si)
