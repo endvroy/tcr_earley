@@ -111,6 +111,9 @@ class ItemSet:
     def __iter__(self):
         return iter(self.items)
 
+    def __contains__(self, item):
+        return item in self.items
+
     def __len__(self):
         return len(self.items)
 
