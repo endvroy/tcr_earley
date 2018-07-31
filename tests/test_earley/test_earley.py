@@ -17,13 +17,13 @@ class TestEarley(unittest.TestCase):
         si = parser.extract()
         self.assertListEqual(sorted(si),
                              [[],
-                              [0, 1],
-                              [0, 1, 2, 3],
-                              [0, 1, 3, 4],
-                              [1, 2],
-                              [1, 2, 3, 4],
-                              [2, 3],
-                              [3, 4]])
+                              [0, 1],  # int(2) +(3) int(4)
+                              [0, 1, 2, 3],  # int(4)
+                              [0, 1, 3, 4],  # int(2)
+                              [1, 2],  # int(0) +(3) int(4)
+                              [1, 2, 3, 4],  # int(0)
+                              [2, 3],  # int(0) +(1) int(4)
+                              [3, 4]])  # int(0) +(1) int(2)
 
     def test_sequence(self):
         si = sem.main('tests/test_earley/01-sequence/tmp.g4',
