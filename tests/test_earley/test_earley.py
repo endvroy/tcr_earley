@@ -28,9 +28,16 @@ class TestEarley(unittest.TestCase):
     def test_sequence(self):
         si = sem.main('tests/test_earley/01-sequence/tmp.g4',
                       'tests/test_earley/01-sequence/tmpLexer.py',
-                      'tests/test_earley/01-sequence/sequence.txt')
+                      'tests/test_earley/01-sequence/stream.txt')
         self.assertListEqual(sorted(si),
                              [(2, 3, 4), (3, 4, 5), (3, 5, 6), (4, 5, 6)])
+
+    def test_top_level_alt(self):
+        si = sem.main('tests/test_earley/02-top-level-alternations/tmp.g4',
+                      'tests/test_earley/02-top-level-alternations/tmpLexer.py',
+                      'tests/test_earley/02-top-level-alternations/stream.txt')
+        self.assertListEqual(sorted(si),
+                             [(0, 1), (0, 1, 2, 3), (0, 3), (1, 2), (2, 3)])
 
 
 if __name__ == '__main__':
