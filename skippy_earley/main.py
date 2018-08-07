@@ -34,21 +34,24 @@ def load_grammar(grammar_path, lexer_path):
     return FileLexer, transform_grammar(grammar)
 
 
-def get_stream(Lexer, file_path):
+def get_stream(Lexer, file_path, strip_eof=True):
     inp = FileStream(file_path)
     lexer = Lexer(inp)
     stream = CommonTokenStream(lexer)
     stream.fill()
     tokens = stream.tokens
-    new_stream = [t.type for t in tokens[:-1]]
+    if strip_eof:
+        new_stream = [t.type for t in tokens[:-1]]
+    else:
+        new_stream = [t.type for t in tokens]
     return new_stream, tokens
 
 
-def main(grammar_path, lexer_path, file_path):
+def main(grammar_path, lexer_path, file_path, strip_eof=True):
     # load the grammar and lexer
     Lexer, grammar = load_grammar(grammar_path, lexer_path)
     # read token stream
-    tokens, orig_tokens = get_stream(Lexer, file_path)
+    tokens, orig_tokens = get_stream(Lexer, file_path, strip_eof)
 
     # get skipped indices
     parser = EarleyParser(tokens, grammar)
