@@ -37,7 +37,9 @@ class TestEarley(unittest.TestCase):
                       'tests/test_earley/02-top-level-alternations/tmpLexer.py',
                       'tests/test_earley/02-top-level-alternations/stream.txt')
         self.assertListEqual(sorted(si),
-                             [(0, 1), (0, 1, 2, 3), (0, 3), (1, 2), (2, 3)])
+                             [(0, 1),
+                              # (0, 1, 2, 3), #empty stream not considered
+                              (0, 3), (1, 2), (2, 3)])
 
     def test_03_nested_alt(self):
         si = sem.main('tests/test_earley/03-nested-alternations/tmp.g4',
@@ -51,7 +53,8 @@ class TestEarley(unittest.TestCase):
                       'tests/test_earley/04-terminals/tmpLexer.py',
                       'tests/test_earley/04-terminals/stream.txt')
         self.assertListEqual(sorted(si),
-                             [(0,), (1,), (2,)])
+                             [  # (0,), no 0 since the tokens are classified before the parsing rule
+                                 (1,), (2,)])
 
     def test_05_quantifiers(self):
         si = sem.main('tests/test_earley/05-quantifiers/tmp.g4',
