@@ -3,7 +3,7 @@ import os
 import importlib
 from antlr4 import FileStream, CommonTokenStream
 from normalize_antlr4 import make_builder
-from skippy_earley.earley_parser import Rule, Grammar, EarleyParser
+from skippy_earley.baseline import Rule, Grammar, EarleyParser
 
 
 def transform_grammar(grammar):
@@ -68,5 +68,5 @@ if __name__ == '__main__':
     arg_parser.add_argument('lexer', help='path to lexer for target language')
     arg_parser.add_argument('file', help='path to test case')
     args = arg_parser.parse_args()
-    si = main(args.grammar, args.lexer, args.file)
+    si = main(args.grammar, args.lexer, args.file, strip_eof=False)
     print(si)

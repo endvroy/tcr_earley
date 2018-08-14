@@ -4,7 +4,7 @@ import argparse
 
 def to_cnf(grammar_path, start):
     builder = make_builder(grammar_path)
-    builder.to_cnf(start)
+    # builder.to_cnf(start)
     s = builder.to_antlr_string()
     with open('tmp.g4', 'w') as f:
         f.write('grammar tmp;\n\n')

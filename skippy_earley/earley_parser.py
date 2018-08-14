@@ -191,7 +191,7 @@ class EarleyParser:
 
     def parse(self):
         for pos, item_set in enumerate(self.table):
-            # print(f'pos={pos}')
+            print(f'pos={pos}')
             current_set = item_set.copy()
             next_set = ItemSet()
             while current_set:

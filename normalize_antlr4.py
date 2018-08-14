@@ -207,6 +207,7 @@ class GrammarBuilder:
             elif atom in nonterminal_map:
                 return nonterminal_map[atom]
             else:
+                print(atom)
                 return -1
 
         rules = {i: tuple(tuple(to_num(atom) for atom in rule) for rule in rules)
