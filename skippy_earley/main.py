@@ -59,6 +59,7 @@ def main(grammar_path, lexer_path, file_path, strip_eof=True):
     skipped_indices = parser.extract()
 
     # todo: print out all test cases
+    # si = list(skipped_indices)
     return skipped_indices
 
 
@@ -68,5 +69,5 @@ if __name__ == '__main__':
     arg_parser.add_argument('lexer', help='path to lexer for target language')
     arg_parser.add_argument('file', help='path to test case')
     args = arg_parser.parse_args()
-    si = main(args.grammar, args.lexer, args.file)
+    si = main(args.grammar, args.lexer, args.file, True)
     print(si)
