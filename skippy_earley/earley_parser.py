@@ -1,4 +1,4 @@
-from collections import defaultdict, deque
+from collections import defaultdict
 import itertools
 
 
@@ -70,9 +70,6 @@ class Item:
         self.at = at
         # skipped pos
         self.skip = skip
-
-    def copy(self):
-        return Item(self.rule, self.dot, self.at, self.skip)
 
     def __eq__(self, other):
         return self.rule == other.rule \
@@ -282,8 +279,6 @@ class EarleyParser:
                 next_set = CacheSet()
             self.skip(pos)
 
-        self._link()
-
     def extract_skips_recursive(self, item):
         """all possible skips to get this item"""
         if item.parents:
@@ -320,6 +315,7 @@ class EarleyParser:
 
     def extract(self):
         """each yield is an iterator of possible skip positions"""
+        self._link()
         seen = set()
         for item in self.table[-1]:
             if self._is_desired(item):
